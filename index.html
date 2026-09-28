@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulação de Galáxia Espiral</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000005;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="galaxyCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Ajusta o tamanho do canvas para preencher a tela inteira
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Configuração do sistema de partículas (Estrelas)
+        const numStars = 2500;
+        const arms = 3; // Número de braços espirais da galáxia
+        const stars = [];
+
+        for (let i = 0; i < numStars; i++) {
+            const distance = Math.random() * canvas.width * 0.45;
+            const armAngle = ((i % arms) / arms) * Math.PI * 2;
+            const spin = distance * 0.0025; // Curvatura dos braços
+            const randomOffset = (Math.random() - 0.5) * 0.4;
+
+            stars.push({
+                distance: distance,
+                angle: armAngle + spin + randomOffset,
+                speed: (0.0003 + (1 - distance / (canvas.width * 0.45)) * 0.0008), // Estrelas internas giram mais rápido
+                size: Math.random() * 1.5 + 0.5,
+                color: getStarColor(distance)
+            });
+        }
+
+        // Define cores baseadas na distância do núcleo (física estelar básica)
+        function getStarColor(distance) {
+            if (distance < 60) return '#ffffff'; // Núcleo super quente (branco)
+            if (distance < 160) return '#ffdd88'; // Amarelado
+            return Math.random() > 0.4 ? '#88ccff' : '#cc88ff'; // Braços externos azuis ou roxos
+        }
+
+        // Loop de animação contínua
+        function animate() {
+            // Efeito de rastro suave (motion blur leve)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            // Desenha o núcleo brilhante central (usando gradiente radial)
+            const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 120);
+            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            coreGradient.addColorStop(0.3, 'rgba(255, 180, 50, 0.35)');
+            coreGradient.addColorStop(1, 'transparent');
+            
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 120, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Atualiza e desenha cada estrela do sistema
+            stars.forEach(star => {
+                star.angle += star.speed; // Incrementa o ângulo para criar rotação
+
+                const x = centerX + Math.cos(star.angle) * star.distance;
+                const y = centerY + Math.sin(star.angle) * star.distance;
+
+                ctx.fillStyle = star.color;
+                ctx.fillRect(x, y, star.size, star.size);
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
