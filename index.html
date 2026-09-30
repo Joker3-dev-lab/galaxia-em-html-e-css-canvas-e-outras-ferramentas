@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Simulação de Galáxia Espiral</title>
+    <title>Galáxia com Azul Intenso e Sem Vermelho nas Bordas</title>
     <style>
         body {
             margin: 0;
@@ -22,7 +22,6 @@
         const canvas = document.getElementById('galaxyCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Ajusta o tamanho do canvas para preencher a tela inteira
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -30,62 +29,103 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Configuração do sistema de partículas (Estrelas)
-        const numStars = 2500;
-        const arms = 3; // Número de braços espirais da galáxia
+        const numStars = 4000;
+        const arms = 5;
         const stars = [];
 
-        for (let i = 0; i < numStars; i++) {
-            const distance = Math.random() * canvas.width * 0.45;
-            const armAngle = ((i % arms) / arms) * Math.PI * 2;
-            const spin = distance * 0.0025; // Curvatura dos braços
-            const randomOffset = (Math.random() - 0.5) * 0.4;
+        const tiltAngle = Math.PI / 2.8;
+        const cosTilt = Math.cos(tiltAngle);
 
-            stars.push({
-                distance: distance,
-                angle: armAngle + spin + randomOffset,
-                speed: (0.0003 + (1 - distance / (canvas.width * 0.45)) * 0.0008), // Estrelas internas giram mais rápido
+        function createStar() {
+            const initialDistance = Math.random() * canvas.width * 0.45;
+            const armIndex = Math.floor(Math.random() * arms);
+            const baseArmAngle = (armIndex / arms) * Math.PI * 2;
+            const spin = initialDistance * 0.0035;
+            const randomOffset = (Math.random() - 0.5) * 0.25;
+
+            return {
+                initialDistance: initialDistance,
+                distance: initialDistance,
+                maxDistance: Math.max(canvas.width, canvas.height) * 0.7,
+                angle: baseArmAngle + spin + randomOffset,
+                totalRotation: 0,
+                targetRotation: Math.PI * 2 * (2 + Math.random() * 3),
+                speed: (0.012 + (1 - initialDistance / (canvas.width * 0.45)) * 0.025),
+                isDispersing: false,
+                expansionRate: 1.5 + Math.random() * 2.0,
                 size: Math.random() * 1.5 + 0.5,
-                color: getStarColor(distance)
-            });
+                color: getStarColor(initialDistance)
+            };
         }
 
-        // Define cores baseadas na distância do núcleo (física estelar básica)
         function getStarColor(distance) {
-            if (distance < 60) return '#ffffff'; // Núcleo super quente (branco)
-            if (distance < 160) return '#ffdd88'; // Amarelado
-            return Math.random() > 0.4 ? '#88ccff' : '#cc88ff'; // Braços externos azuis ou roxos
+            if (distance < 50) return '#ffffff'; // Núcleo super quente
+            if (distance < 140) return '#3399ff'; // Azul intermediário forte
+
+            // Extremidades: apenas tons de azul intenso e ciano (sem vermelho)
+            const intenseBlues = ['#00ffff', '#0088ff', '#1e90ff', '#00bfff', '#4169e1'];
+            return intenseBlues[Math.floor(Math.random() * intenseBlues.length)];
         }
 
-        // Loop de animação contínua
+        for (let i = 0; i < numStars; i++) {
+            const star = createStar();
+            star.totalRotation = Math.random() * star.targetRotation;
+            stars.push(star);
+        }
+
         function animate() {
-            // Efeito de rastro suave (motion blur leve)
             ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            // Desenha o núcleo brilhante central (usando gradiente radial)
-            const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 120);
-            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-            coreGradient.addColorStop(0.3, 'rgba(255, 180, 50, 0.35)');
+            // Núcleo central incandescente (mantém o contraste quente no centro, mas limpo nas bordas)
+            const coreGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 140);
+            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');     // Centro branco puro
+            coreGradient.addColorStop(0.2, 'rgba(255, 140, 50, 0.9)'); // Laranja central forte
+            coreGradient.addColorStop(0.5, 'rgba(255, 50, 50, 0.4)');  // Vermelho apenas bem no miolo
             coreGradient.addColorStop(1, 'transparent');
             
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.scale(1, cosTilt);
             ctx.fillStyle = coreGradient;
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 120, 0, Math.PI * 2);
+            ctx.arc(0, 0, 140, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
 
-            // Atualiza e desenha cada estrela do sistema
-            stars.forEach(star => {
-                star.angle += star.speed; // Incrementa o ângulo para criar rotação
+            // Atualiza e desenha cada estrela
+            stars.forEach((star, index) => {
+                star.angle += star.speed;
+                star.totalRotation += star.speed;
 
-                const x = centerX + Math.cos(star.angle) * star.distance;
-                const y = centerY + Math.sin(star.angle) * star.distance;
+                if (star.totalRotation >= star.targetRotation) {
+                    star.isDispersing = true;
+                }
 
-                ctx.fillStyle = star.color;
-                ctx.fillRect(x, y, star.size, star.size);
+                if (star.isDispersing) {
+                    star.distance += star.expansionRate;
+                }
+
+                const rawX = Math.cos(star.angle) * star.distance;
+                const rawY = Math.sin(star.angle) * star.distance;
+
+                const x = centerX + rawX;
+                const y = centerY + (rawY * cosTilt);
+
+                if (star.distance > star.maxDistance || x < 0 || x > canvas.width || y < 0 || y > canvas.height) {
+                    stars[index] = createStar();
+                } else {
+                    if (star.isDispersing) {
+                        ctx.fillStyle = '#ffffff'; // Clarão branco forte na fuga
+                        ctx.fillRect(x, y, star.size * 1.8, star.size * 1.8);
+                    } else {
+                        ctx.fillStyle = star.color;
+                        ctx.fillRect(x, y, star.size, star.size);
+                    }
+                }
             });
 
             requestAnimationFrame(animate);
